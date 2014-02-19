@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <style type="text/css">
+
+rect {
+  fill: none;
+  stroke: #fff;
+}
+
+text {
+  font: 10px sans-serif;
+}
+
+    </style>
+  </head>
+  <body>
+    <script type="text/javascript">
+
+var w = 960,
+    h = 500,
+    color = d3.scale.category20c();
+
+function fontSize(d,i) {
+var size = d.dx/5;
+var words = d.key.split(' ');
+var word = words[0];
+var width = d.dx;
+var height = d.dy;
+var length = 0;
+d3.select(this).style("font-size", size + "px").text(word);
+while(((this.getBBox().width >= width) || (this.getBBox().height >= height)) && (size > 12))
+ {
+  size--;
+  d3.select(this).style("font-size", size + "px");
+  this.firstChild.data = word;
+ }
+}
+
+function wordWrap(d, i){
+var words = d.key.split(' ');
+var line = new Array();
+var length = 0;
+var text = "";
+var width = d.dx;
+var height = d.dy;
+var word;
+do {
+   word = words.shift();
+   line.push(word);
+   if (words.length)
+     this.firstChild.data = line.join(' ') + " " + words[0]; 
+   else
+     this.firstChild.data = line.join(' ');
+   length = this.getBBox().width;
+   if (length < width && words.length) {
+     ;
+   }
+   else {
+     text = line.join(' ');
+     this.firstChild.data = text;
+     if (this.getBBox().width > width) { 
+       text = d3.select(this).select(function() {return this.lastChild;}).text();
+       text = text + "...";
+       d3.select(this).select(function() {return this.lastChild;}).text(text);
+       d3.select(this).classed("wordwrapped", true);
+       break;
+    }
+    else
+      ;
+
+  if (text != '') {
+    d3.select(this).append("svg:tspan")
+    .attr("x", 0)
+    .attr("dx", "0.15em")
+    .attr("dy", "0.9em")
+    .text(text);
+  }
+  else
+     ;
+
+  if(this.getBBox().height > height && words.length) {
+     text = d3.select(this).select(function() {return this.lastChild;}).text();
+     text = text + "...";
+     d3.select(this).select(function() {return this.lastChild;}).text(text);
+     d3.select(this).classed("wordwrapped", true);
+
+     break;
+  }
+  else
+     ;
+
+  line = new Array();
+    }
+  } while (words.length);
+  this.firstChild.data = '';
+} 
+
+var treemap = d3.layout.treemap()
+    .size([w + 1, h + 1])
+    .children(function(d) { return isNaN(d.value) ? d3.entries(d.value) : null; })
+    .value(function(d) { return d.value; })
+    .sticky(true);
+
+var svg = d3.select("body").append("svg:svg")
+    .style("width", w)
+    .style("height", h)
+  .append("svg:g")
+    .attr("transform", "translate(-.5,-.5)");
+
+d3.json("readme.json", function(json) {
+  var cell = svg.data(d3.entries(json)).selectAll("g")
+      .data(treemap)
+    .enter().append("svg:g").filter(function(d){ return d.depth == 1 ? 1 : 0;})
+      .attr("class", "cell")
+      .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+
+  cell.append("svg:rect")
+      .attr("width", function(d) { return d.dx; })
+      .attr("height", function(d) { return d.dy; })
+//      .style("fill", function(d) { return d.children ? color(d.data.key) : null; });
+  
+  cell.append("svg:text")
+       .attr("x",0)
+       .attr("dx", "0.35em")
+       .attr("dy", "0.9em") 
+      .each(fontSize)
+      .each(wordWrap);
+});
+
+    </script>
+  </body>
+</html>
