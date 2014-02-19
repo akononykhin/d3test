@@ -144,7 +144,7 @@ $(document).ready(function() {
             .attr("width", 18).attr("height", 18)
             .attr("class", "add_node")
             .on("click", function (d) {
-                addNode(d);
+                addNode(d, null);
             });
 
         // Transition nodes to their new position.
@@ -202,7 +202,7 @@ $(document).ready(function() {
                 .attr("y", 0)
                 .attr("width", 18).attr("height", 18)
                 .on("click", function (d) {
-                    addNode(d.source);
+                    addNode(d.source, d.target);
                 });
         addNodeIcon.transition()
             .duration(duration)
@@ -214,8 +214,10 @@ $(document).ready(function() {
 
     }
 
-    function addNode(d)
+    function addNode(source, target)
     {
+        var insertInMiddle = (!target || d3.event.altKey) ? false : true;
+
         var images = ["dtmf.png", "call.png", "call_link.png", "check_direction.png", "goto.png", "goto_tree.png"];
         d3.shuffle(images);
 
@@ -224,10 +226,21 @@ $(document).ready(function() {
             "image": images.shift(),
             "children": []
         }
-        if(!d.children) {
-            d.children = [];
+        if(!source.children) {
+            source.children = [];
         }
-        d.children.push(o);
+
+        if(!insertInMiddle) {
+            source.children.push(o);
+        }
+        else {
+            o.children.push(target);
+            source.children.forEach(function (d, i) {
+                if(d.id == target.id) {
+                    source.children[i] = o;
+                }
+            });
+        }
         update(root);
     }
 
