@@ -1,0 +1,68 @@
+{
+    "id": 1,
+    "image": "start_in.png",
+    "children": [
+        {
+            "id": 2,
+            "image": "dtmf.png",
+            "description": "DTMF menu",
+            "children": [
+                {
+                    "id": 3,
+                    "title": "1.1.1:",
+                    "image": "dtmf.png",
+                    "description": "DTMF menu",
+                    "children": [
+                        {
+                            "id": 4,
+                            "title": "1.1.1.1:",
+                            "image": "call.png",
+                            "children": []
+                        },
+                        {
+                            "id": 5,
+                            "title": "1.1.1.2:",
+                            "image": "call.png",
+                            "children": [
+                                {
+                                    "id": 6,
+                                    "image": "call.png"
+                                },
+                                {
+                                    "id": 7,
+                                    "image": "call.png"
+                                }
+                            ]
+                        },
+                        {
+                            "id": 8,
+                            "title": "1.1.1.3:",
+                            "image": "call.png",
+                            "children": []
+                        }
+                    ]
+                },
+                {
+                    "id": 9,
+                    "title": "1.1.2:",
+                    "image": "dtmf.png",
+                    "description": "DTMF menu",
+                    "children": [
+                        {
+                            "id": 10,
+                            "image": "call.png",
+                            "description": "Call to number",
+                            "children": []
+                        },
+                        {
+                            "id": 11,
+                            "image": "call.png",
+                            "description": "test",
+                            "children": []
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
