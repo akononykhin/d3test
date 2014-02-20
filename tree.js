@@ -3,6 +3,8 @@ $(document).ready(function() {
     // variables for drag/drop
     var selectedNode = null;
     var draggingNode = null;
+    var dragActive = false;
+
     // panning variables
     var panSpeed = 200;
     var panBoundary = 20; // Within 20px from edges will pan when dragging.
@@ -70,9 +72,6 @@ $(document).ready(function() {
 
     function initiateDrag(d, domNode) {
         draggingNode = d;
-        d3.select(domNode).select('.ghostCircle').attr('pointer-events', 'none');
-        d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
-        d3.select(domNode).attr('class', 'node activeDrag');
 
         svgGroup.selectAll("g.node").sort(function(a, b) { // select the parent and sort the path's
             if (a.id != draggingNode.id) return 1; // a is not the hovered element, send "a" to the back
@@ -135,6 +134,7 @@ $(document).ready(function() {
             if (dragStarted) {
                 domNode = this;
                 initiateDrag(d, domNode);
+                dragActive = true;
             }
 
             // get coords of mouseEvent relative to svg container to allow for panning
@@ -165,11 +165,12 @@ $(document).ready(function() {
 
             var node = d3.select(this);
             node.attr("transform", "translate(" + d.x + "," + d.y + ")");
-            updateTempConnector();
+            updateFocusedZone();
         }).on("dragend", function(d) {
             if (d == root) {
                 return;
             }
+            dragActive = false;
             domNode = this;
             if (selectedNode) {
                 // now remove the element from the parent, and insert it into the new elements children
@@ -195,7 +196,6 @@ $(document).ready(function() {
         d3.select(domNode).attr('class', 'node');
         // now restore the mouseover event or we won't be able to drag a 2nd time
         d3.select(domNode).select('.ghostCircle').attr('pointer-events', '');
-        updateTempConnector();
         if (draggingNode !== null) {
             update(root);
             draggingNode = null;
@@ -204,39 +204,25 @@ $(document).ready(function() {
 
     var overCircle = function(d) {
         selectedNode = d;
-        updateTempConnector();
+        updateFocusedZone();
     };
     var outCircle = function(d) {
         selectedNode = null;
-        updateTempConnector();
+        updateFocusedZone();
     };
 
     // Function to update the temporary connector indicating dragging affiliation
-    var updateTempConnector = function() {
-        var data = [];
-        if (draggingNode !== null && selectedNode !== null) {
-            // have to flip the source coordinates since we did this for the existing connectors on the original tree
-            data = [{
-                source: {
-                    x: selectedNode.x,
-                    y: selectedNode.y
-                },
-                target: {
-                    x: draggingNode.x,
-                    y: draggingNode.y
-                }
-            }];
+    var updateFocusedZone = function() {
+        if(dragActive) {
+            d3.select(domNode).select('.ghostCircle').attr('pointer-events', 'none');
+            d3.selectAll('.ghostCircle').attr('class', 'ghostCircle show');
+            d3.select(domNode).attr('class', 'node activeDrag');
+
+            if(selectedNode !== null) {
+                d3.selectAll('.ghostCircle').filter(function(d) { return d.id==selectedNode.id; }).attr('class', 'ghostCircle show focused');
+            }
+
         }
-        var link = svgGroup.selectAll(".templink").data(data);
-
-        link.enter().append("path")
-            .attr("class", "templink")
-            .attr("d", d3.svg.diagonal())
-            .attr('pointer-events', 'none');
-
-        link.attr("d", d3.svg.diagonal());
-
-        link.exit().remove();
     };
 
     var svgGroup = baseSvg.append("g");
@@ -279,6 +265,11 @@ $(document).ready(function() {
             .style("stroke-width", "0.3px");
 
         d.downTextHeight = bbox.height;
+    }
+
+    function addNewNodeDiv(addToNodes)
+    {
+
     }
 
     function update(source)
@@ -334,9 +325,11 @@ $(document).ready(function() {
                 .html(function(d) { return d.description; })
                 .each(addBottomBBox);
         /* Special <g> for all last-level childs */
-        var lastChildSubNodeEnter = nodeEnter.filter(function(d) { return !d.children; }).append("g")
+        var lastChildSubNodeEnter = nodeEnter.filter(function(d) {
+            return !d.children || 0 == d.children.length;
+        }).append("g")
             .attr("class", "node_new");
-        lastChildSubNodeEnter.filter(function(d) { return !d.children; }).append("svg:line")
+        lastChildSubNodeEnter.filter(function(d) { return !d.children || 0 == d.children.length; }).append("svg:line")
             .attr("class", "link_new")
             .attr("id", function (d) {
                 return "link_"+ d.id+"_new";
@@ -351,7 +344,7 @@ $(document).ready(function() {
             })
             .attr("x2", 0)
             .attr("y2", function (d) { return newLinkLen + nodeImageH/2;});
-        lastChildSubNodeEnter.filter(function(d) { return !d.children; }).append("image")
+        lastChildSubNodeEnter.filter(function(d) { return !d.children || 0 == d.children.length; }).append("image")
             .attr("xlink:href","images/add_node.png")
             .attr("x", -9)
             .attr("y", newLinkLen + nodeImageH/2 - 9)
@@ -361,12 +354,11 @@ $(document).ready(function() {
                 addNode(d, null);
             });
         // phantom node to give us mouseover in a radius around it
-        lastChildSubNodeEnter.filter(function(d) { return !d.children; }).append("circle")
+        lastChildSubNodeEnter.filter(function(d) { return !d.children || 0 == d.children.length; }).append("circle")
             .attr('class', 'ghostCircle')
             .attr("cx", 0)
             .attr("cy", newLinkLen + nodeImageH/2)
             .attr("r", 20)
-            .attr("opacity", 0.8) // change this to zero to hide the target area
             .attr('pointer-events', 'mouseover')
             .on("mouseover", function(node) {
                 overCircle(node);
@@ -379,7 +371,7 @@ $(document).ready(function() {
         var nodeUpdate = node.transition()
             .duration(duration)
             .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
-        node.selectAll("g.node_new").filter(function(d) { return d.children; }).transition()
+        node.selectAll("g.node_new").filter(function(d) { return d.children && d.children.length > 0;}).transition()
             .duration(duration)
             .remove();
 
@@ -487,6 +479,4 @@ $(document).ready(function() {
         }
 
     }
-
-    //d3.select(self.frameElement).style("height", height + "px");
 });
