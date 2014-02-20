@@ -85,6 +85,20 @@ $(document).ready(function() {
                 .data(links, function(d) {
                     return d.target.id;
                 }).remove();
+            // Remove child add_node images
+            addNodesExit = svgGroup.selectAll("g.add_node")
+                .data(links, function (d) {
+                    return d.source.id+"-"+ d.target.id;
+                })
+                .remove();
+            // Remove parent add_node image
+            var parentAddNodeName = d.parent.id + "-" + d.id;
+            addNodesExit = svgGroup.selectAll("g.add_node")
+                .filter(function (d) {
+                    var checkName = d.source.id+"-"+ d.target.id;
+                    return (checkName == parentAddNodeName);
+                })
+                .remove();
             // remove child nodes
             nodesExit = svgGroup.selectAll("g.node")
                 .data(nodes, function(d) {
@@ -95,6 +109,7 @@ $(document).ready(function() {
                     }
                     return true;
                 }).remove();
+
         }
 
         // remove parent link
@@ -269,6 +284,45 @@ $(document).ready(function() {
 
     function addNewNodeDiv(addToNodes)
     {
+        var lastChildSubNodeEnter = addToNodes.append("g")
+            .attr("class", "node_new");
+        lastChildSubNodeEnter.filter(function(d) { return !d.children || 0 == d.children.length; }).append("svg:line")
+            .attr("class", "link_new")
+            .attr("id", function (d) {
+                return "link_"+ d.id+"_new";
+            })
+            .attr("style", function (d) {
+                var image = d.image;
+                return "stroke: " + getLinkColor(image) + ";";
+            })
+            .attr("x1", 0)
+            .attr("y1", function (d) {
+                return nodeImageH/2 + (d.downTextHeight || 0);
+            })
+            .attr("x2", 0)
+            .attr("y2", function (d) { return newLinkLen + nodeImageH/2;});
+        lastChildSubNodeEnter.filter(function(d) { return !d.children || 0 == d.children.length; }).append("image")
+            .attr("xlink:href","images/add_node.png")
+            .attr("x", -9)
+            .attr("y", newLinkLen + nodeImageH/2 - 9)
+            .attr("width", 18).attr("height", 18)
+            .attr("class", "add_node")
+            .on("click", function (d) {
+                addNode(d, null);
+            });
+        // phantom node to give us mouseover in a radius around it
+        lastChildSubNodeEnter.filter(function(d) { return !d.children || 0 == d.children.length; }).append("circle")
+            .attr('class', 'ghostCircle')
+            .attr("cx", 0)
+            .attr("cy", newLinkLen + nodeImageH/2)
+            .attr("r", 20)
+            .attr('pointer-events', 'mouseover')
+            .on("mouseover", function(node) {
+                overCircle(node);
+            })
+            .on("mouseout", function(node) {
+                outCircle(node);
+            });
 
     }
 
@@ -325,55 +379,25 @@ $(document).ready(function() {
                 .html(function(d) { return d.description; })
                 .each(addBottomBBox);
         /* Special <g> for all last-level childs */
-        var lastChildSubNodeEnter = nodeEnter.filter(function(d) {
-            return !d.children || 0 == d.children.length;
-        }).append("g")
-            .attr("class", "node_new");
-        lastChildSubNodeEnter.filter(function(d) { return !d.children || 0 == d.children.length; }).append("svg:line")
-            .attr("class", "link_new")
-            .attr("id", function (d) {
-                return "link_"+ d.id+"_new";
-            })
-            .attr("style", function (d) {
-                var image = d.image;
-                return "stroke: " + getLinkColor(image) + ";";
-            })
-            .attr("x1", 0)
-            .attr("y1", function (d) {
-                return nodeImageH/2 + (d.downTextHeight || 0);
-            })
-            .attr("x2", 0)
-            .attr("y2", function (d) { return newLinkLen + nodeImageH/2;});
-        lastChildSubNodeEnter.filter(function(d) { return !d.children || 0 == d.children.length; }).append("image")
-            .attr("xlink:href","images/add_node.png")
-            .attr("x", -9)
-            .attr("y", newLinkLen + nodeImageH/2 - 9)
-            .attr("width", 18).attr("height", 18)
-            .attr("class", "add_node")
-            .on("click", function (d) {
-                addNode(d, null);
-            });
-        // phantom node to give us mouseover in a radius around it
-        lastChildSubNodeEnter.filter(function(d) { return !d.children || 0 == d.children.length; }).append("circle")
-            .attr('class', 'ghostCircle')
-            .attr("cx", 0)
-            .attr("cy", newLinkLen + nodeImageH/2)
-            .attr("r", 20)
-            .attr('pointer-events', 'mouseover')
-            .on("mouseover", function(node) {
-                overCircle(node);
-            })
-            .on("mouseout", function(node) {
-                outCircle(node);
-            });
+        addNewNodeDiv(nodeEnter.filter(function(d) { return !d.children || 0 == d.children.length;}));
 
         // Transition nodes to their new position.
         var nodeUpdate = node.transition()
             .duration(duration)
             .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+        // Remove g.node_new from existing nodes which now have children
         node.selectAll("g.node_new").filter(function(d) { return d.children && d.children.length > 0;}).transition()
             .duration(duration)
             .remove();
+        // Add g.node_new to existing nodes which don't have children now
+        addNewNodeDiv(
+            node.filter(function () {
+                    return d3.select(this).select("g.node_new").empty()
+                })
+                .filter(function (d) {
+                    return !d.children || (0 == d.children.length)
+                })
+        );
 
         // Remove old nodes
         var nodeExit = node.exit().transition()
@@ -415,9 +439,6 @@ $(document).ready(function() {
                 return "translate(" +((d.target.x+d.source.x)/2 - 9) + "," + ((d.target.y+d.source.y)/2 - 9) + ")";
             })
             .append("image").attr("xlink:href","images/add_node.png")
-                .attr("id", function (d) {
-                    return "add_node_to_" + d.source.id;
-                })
                 .attr("x", 0)
                 .attr("y", 0)
                 .attr("width", 18).attr("height", 18)
